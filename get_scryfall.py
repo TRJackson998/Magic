@@ -27,6 +27,34 @@ from enum import Enum
 import requests
 
 
+class BulkDataError(Exception):
+    """Base class for exceptions related to bulk data."""
+
+    def __init__(self, message: str):
+        print(message)
+
+
+class FetchDataError(BulkDataError):
+    """Raised when fetching bulk data fails."""
+
+    def __init__(self, status_code):
+        super().__init__(f"Failed to fetch bulk data. Status code: {status_code}")
+
+
+class DownloadError(BulkDataError):
+    """Raised when downloading the file fails."""
+
+    def __init__(self, status_code):
+        super().__init__(f"Failed to download the file. Status code: {status_code}")
+
+
+class DataTypeNotFoundError(BulkDataError):
+    """Raised when the requested data type is not found."""
+
+    def __init__(self, data_type):
+        super().__init__(f"Data type '{data_type}' not found in bulk data.")
+
+
 class BulkDataType(Enum):
     """
     Restrict the types of files that can be requested
@@ -46,8 +74,7 @@ def main(data_type: BulkDataType):
     # Fetch bulk data info
     response = requests.get(url, timeout=60 * 5)
     if response.status_code != 200:
-        print(f"Failed to fetch bulk data. Status code: {response.status_code}")
-        return
+        raise FetchDataError(response.status_code)
 
     # Find the correct file type based on the param passed in
     data = response.json()
@@ -57,14 +84,12 @@ def main(data_type: BulkDataType):
             file_url = bulk_data["download_uri"]
             break
     if not file_url:
-        print(f"Data type '{data_type.value}' not found.")
-        return
+        raise DataTypeNotFoundError(data_type.value)
 
     # Pull the file itself
     file_response = requests.get(file_url, timeout=60 * 5)
     if file_response.status_code != 200:
-        print(f"Failed to download the file. Status code: {file_response.status_code}")
-        return
+        raise DownloadError(response.status_code)
     file_name = f"{data_type.value}.json"
     with open(file_name, "wb") as file:
         file.write(file_response.content)
