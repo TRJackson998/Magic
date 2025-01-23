@@ -1,7 +1,8 @@
 """
-Get Scryfall Data
+Scryfall
 =================
 Use Scryfall's api to pull a json file containing card objects on Scryfall
+and populate a database table with the data
 
 File Types
 ----------
@@ -24,6 +25,7 @@ Reference https://scryfall.com/docs/api/bulk-data
 """
 
 from enum import Enum
+
 import requests
 
 
@@ -67,7 +69,7 @@ class BulkDataType(Enum):
     RULINGS = "rulings"
 
 
-def main(data_type: BulkDataType):
+def get_data(data_type: BulkDataType) -> str:
     """Pull the bulk data json file from Scryfall"""
     url = "https://api.scryfall.com/bulk-data"
 
@@ -95,6 +97,13 @@ def main(data_type: BulkDataType):
         file.write(file_response.content)
     print(f"File downloaded successfully as '{file_name}'")
 
+    return file_name
+
+
+def main():
+    """Driver function"""
+    file = get_data(BulkDataType.DEFAULT)
+
 
 if __name__ == "__main__":
-    main(BulkDataType.DEFAULT)
+    main()
