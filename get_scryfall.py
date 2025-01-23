@@ -90,7 +90,7 @@ def main(data_type: BulkDataType):
     file_response = requests.get(file_url, timeout=60 * 5)
     if file_response.status_code != 200:
         raise DownloadError(response.status_code)
-    file_name = f"{data_type.value}.json"
+    file_name = f"{data_type.value}_scryfall.json"
     with open(file_name, "wb") as file:
         file.write(file_response.content)
     print(f"File downloaded successfully as '{file_name}'")
