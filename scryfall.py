@@ -24,12 +24,23 @@ RULINGS
 Reference https://scryfall.com/docs/api/bulk-data
 """
 
+import configparser
 import datetime
 from enum import Enum
 from pathlib import Path
 
 import pandas as pd
 import requests
+import sqlalchemy
+from sqlalchemy.exc import IntegrityError
+
+config = configparser.ConfigParser()
+config.read("config.ini")
+
+MYSQL_USER = config["mysql"]["user"]
+MYSQL_PASSWORD = config["mysql"]["password"]
+MYSQL_HOST = config["mysql"]["host"]
+MYSQL_DB = config["mysql"]["database"]
 
 
 class BulkDataError(Exception):
@@ -116,7 +127,7 @@ def flatten_list(color_list: list) -> str:
     ):  # empty list or pandas null
         return ""
 
-    color_list = [
+    color_list: list[str] = [
         str(element) for innerList in color_list for element in innerList if pd.notna(element)
     ]
     color_list = set(color_list)  # remove duplicates
@@ -128,13 +139,66 @@ def flatten_list(color_list: list) -> str:
 def read_data(json: str) -> pd.DataFrame:
     """Read the json and then clean it up and make it usable"""
     df = pd.read_json(json)
+
+    # filter columns
     keep_cols = ["name", "set_name", "rarity", "colors", "cmc", "type_line"]
     df = df[keep_cols]
+
+    # clean a couple cols
     df["colors"] = df["colors"].apply(flatten_list)
-    df["cmc"] = df["cmc"].apply(lambda x: int(x) if pd.notna(x) else pd.NA)  # float -> int
+    df["cmc"] = df["cmc"].apply(lambda x: str(int(x)) if pd.notna(x) else pd.NA)  # float -> int
+
+    # aggregate rows by name, turn sets into strings for SQL
+    df = df.fillna("")
     df = df.groupby("name").agg(set).reset_index()
+    for col in keep_cols[1:]:
+        df[col] = df[col].apply(lambda x: ", ".join([element for element in x if element != ""]))
 
     return df
+
+
+def update_db(data: pd.DataFrame) -> None:
+    """Add the scryfall data into the database"""
+    engine = sqlalchemy.create_engine(
+        f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}"
+    )
+
+    # Define metadata and table object
+    metadata = sqlalchemy.MetaData()
+    scryfall_table = sqlalchemy.Table(
+        "scryfall",
+        metadata,
+        sqlalchemy.Column("name", sqlalchemy.String(255), nullable=False, primary_key=True),
+        sqlalchemy.Column("set_name", sqlalchemy.String(14000)),
+        sqlalchemy.Column("rarity", sqlalchemy.String(100)),
+        sqlalchemy.Column("colors", sqlalchemy.String(100)),
+        sqlalchemy.Column("cmc", sqlalchemy.String(100)),
+        sqlalchemy.Column("type_line", sqlalchemy.String(255)),
+        sqlalchemy.Column("deck", sqlalchemy.String(100)),
+    )
+
+    # Check if the table exists and create it if it doesn't
+    inspector = sqlalchemy.inspect(engine)
+    if "scryfall" not in inspector.get_table_names():
+        metadata.create_all(engine)
+
+    with engine.connect() as connection:
+        # Convert DataFrame to a list of dictionaries
+        rows = data.to_dict(orient="records")
+
+        for row in rows:
+            try:
+                # Attempt to insert; if it fails due to PK restriction, perform an update
+                connection.execute(scryfall_table.insert(), row)
+            except IntegrityError:
+                connection.execute(
+                    scryfall_table.update().where(scryfall_table.c.name == row["name"]),
+                    row,
+                )
+            except Exception as e:
+                print(f"Error processing row {row}: {e}")
+                raise e
+        connection.commit()
 
 
 def main(file: Path = None):
@@ -142,6 +206,7 @@ def main(file: Path = None):
     if not file or not file.exists():
         file = get_data(BulkDataType.DEFAULT)
     df = read_data(file)
+    update_db(df)
 
 
 if __name__ == "__main__":
