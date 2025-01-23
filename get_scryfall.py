@@ -27,7 +27,6 @@ from enum import Enum
 import requests
 
 
-# Define an Enum for the type options
 class BulkDataType(Enum):
     """
     Restrict the types of files that can be requested
@@ -46,24 +45,30 @@ def main(data_type: BulkDataType):
 
     # Fetch bulk data info
     response = requests.get(url, timeout=60 * 5)
-    if response.status_code == 200:
-        data = response.json()
-        for bulk_data in data.get("data", []):
-            if bulk_data["type"] == data_type.value:
-                file_url = bulk_data["download_uri"]
-                file_response = requests.get(file_url, timeout=60 * 5)
-
-                if file_response.status_code == 200:
-                    file_name = f"{data_type.value}.json"
-                    with open(file_name, "wb") as file:
-                        file.write(file_response.content)
-                    print(f"File downloaded successfully as '{file_name}'")
-                else:
-                    print(f"Failed to download the file. Status code: {file_response.status_code}")
-                return
-        print(f"Data type '{data_type.value}' not found.")
-    else:
+    if response.status_code != 200:
         print(f"Failed to fetch bulk data. Status code: {response.status_code}")
+        return
+
+    # Find the correct file type based on the param passed in
+    data = response.json()
+    file_url = None
+    for bulk_data in data.get("data", []):
+        if bulk_data["type"] == data_type.value:
+            file_url = bulk_data["download_uri"]
+            break
+    if not file_url:
+        print(f"Data type '{data_type.value}' not found.")
+        return
+
+    # Pull the file itself
+    file_response = requests.get(file_url, timeout=60 * 5)
+    if file_response.status_code != 200:
+        print(f"Failed to download the file. Status code: {file_response.status_code}")
+        return
+    file_name = f"{data_type.value}.json"
+    with open(file_name, "wb") as file:
+        file.write(file_response.content)
+    print(f"File downloaded successfully as '{file_name}'")
 
 
 if __name__ == "__main__":
