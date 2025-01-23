@@ -28,6 +28,7 @@ import datetime
 from enum import Enum
 from pathlib import Path
 
+import pandas as pd
 import requests
 
 
@@ -102,10 +103,45 @@ def get_data(data_type: BulkDataType) -> str:
     return file_name
 
 
-def main():
+def flatten_list(color_list: list) -> str:
+    """
+    The 'color' row comes in as lists of lists
+    In order to aggregate the df by name, flatten the 2d list
+    and move the data to a string
+
+    [['R', 'G', 'B'], ['R', 'G', 'B'], ['R', 'G', 'B']] -> "R, G, B"
+    """
+    if (isinstance(color_list, list) and not color_list) or (
+        not isinstance(color_list, list) and pd.isna(color_list)
+    ):  # empty list or pandas null
+        return ""
+
+    color_list = [
+        str(element) for innerList in color_list for element in innerList if pd.notna(element)
+    ]
+    color_list = set(color_list)  # remove duplicates
+    color_list = ", ".join(color_list)
+
+    return color_list
+
+
+def read_data(json: str) -> pd.DataFrame:
+    """Read the json and then clean it up and make it usable"""
+    df = pd.read_json(json)
+    keep_cols = ["name", "set_name", "rarity", "colors", "cmc", "type_line"]
+    df = df[keep_cols]
+    df["colors"] = df["colors"].apply(flatten_list)
+    df["cmc"] = df["cmc"].apply(lambda x: int(x) if pd.notna(x) else pd.NA)  # float -> int
+    df = df.groupby("name").agg(set).reset_index()
+
+    return df
+
+
+def main(file: Path = None):
     """Driver function"""
     if not file or not file.exists():
         file = get_data(BulkDataType.DEFAULT)
+    df = read_data(file)
 
 
 if __name__ == "__main__":
