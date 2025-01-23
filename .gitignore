@@ -170,5 +170,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# IDE Files
+.vscode
 # Project Files
 *_scryfall.json
