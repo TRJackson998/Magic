@@ -172,3 +172,7 @@ cython_debug/
 
 # IDE Files
 .vscode
+
+# Project Files
+*_scryfall.json
+config.ini
