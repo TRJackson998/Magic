@@ -24,7 +24,9 @@ RULINGS
 Reference https://scryfall.com/docs/api/bulk-data
 """
 
+import datetime
 from enum import Enum
+from pathlib import Path
 
 import requests
 
@@ -92,7 +94,7 @@ def get_data(data_type: BulkDataType) -> str:
     file_response = requests.get(file_url, timeout=60 * 5)
     if file_response.status_code != 200:
         raise DownloadError(response.status_code)
-    file_name = f"{data_type.value}_scryfall.json"
+    file_name = f"{datetime.date.today():%Y%m%d}_{data_type.value}_scryfall.json"
     with open(file_name, "wb") as file:
         file.write(file_response.content)
     print(f"File downloaded successfully as '{file_name}'")
@@ -102,8 +104,13 @@ def get_data(data_type: BulkDataType) -> str:
 
 def main():
     """Driver function"""
-    file = get_data(BulkDataType.DEFAULT)
+    if not file or not file.exists():
+        file = get_data(BulkDataType.DEFAULT)
 
 
 if __name__ == "__main__":
-    main()
+    main(
+        Path(__file__).parent.joinpath(
+            f"{datetime.date.today():%Y%m%d}_default_cards_scryfall.json"
+        )
+    )
