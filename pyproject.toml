@@ -4,6 +4,9 @@ version = "0.1.0"
 description = ""
 authors = ["TRJackson998 <t.r.jackson998@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "proxy_analyzer" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
