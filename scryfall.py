@@ -92,6 +92,7 @@ class BulkDataType(Enum):
 
 def get_data(data_type: BulkDataType) -> str:
     """Pull the bulk data json file from Scryfall"""
+    logger.info("Pulling data from Scryfall")
     url = "https://api.scryfall.com/bulk-data"
 
     # Fetch bulk data info
@@ -145,6 +146,7 @@ def flatten_list(color_list: list) -> str:
 
 def read_data(json: str) -> pd.DataFrame:
     """Read the json and then clean it up and make it usable"""
+    logger.info("Reading data")
     df = pd.read_json(json)
 
     # filter columns
@@ -166,6 +168,8 @@ def read_data(json: str) -> pd.DataFrame:
 
 def update_db(data: pd.DataFrame) -> None:
     """Add the scryfall data into the database"""
+    logger.info(f"Reading {len(data)} records into database")
+    logger.info("Setting up database connection")
     engine = sqlalchemy.create_engine(
         f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}"
     )
@@ -187,9 +191,11 @@ def update_db(data: pd.DataFrame) -> None:
     # Check if the table exists and create it if it doesn't
     inspector = sqlalchemy.inspect(engine)
     if "scryfall" not in inspector.get_table_names():
+        logger.info("Creating table")
         metadata.create_all(engine)
 
     with engine.connect() as connection:
+        logger.info("Connected to database")
         # Convert DataFrame to a list of dictionaries
         rows = data.to_dict(orient="records")
 
@@ -210,10 +216,12 @@ def update_db(data: pd.DataFrame) -> None:
 
 def main(file: Path = None):
     """Driver function"""
+    logger.info("Starting script")
     if not file or not file.exists():
         file = get_data(BulkDataType.DEFAULT)
     df = read_data(file)
     update_db(df)
+    logger.info("Script complete!")
 
 
 if __name__ == "__main__":
