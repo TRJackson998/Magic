@@ -54,7 +54,7 @@ class BulkDataError(Exception):
     """Base class for exceptions related to bulk data."""
 
     def __init__(self, message: str):
-        print(message)
+        logger.error(message)
 
 
 class FetchDataError(BulkDataError):
@@ -116,7 +116,7 @@ def get_data(data_type: BulkDataType) -> str:
     file_name = f"{datetime.date.today():%Y%m%d}_{data_type.value}_scryfall.json"
     with open(file_name, "wb") as file:
         file.write(file_response.content)
-    print(f"File downloaded successfully as '{file_name}'")
+    logger.info(f"File downloaded successfully as '{file_name}'")
 
     return file_name
 
@@ -203,7 +203,7 @@ def update_db(data: pd.DataFrame) -> None:
                     row,
                 )
             except Exception as e:
-                print(f"Error processing row {row}: {e}")
+                logger.error(f"Error processing row {row}: {e}")
                 raise e
         connection.commit()
 
