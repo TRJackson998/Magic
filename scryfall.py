@@ -26,6 +26,8 @@ Reference https://scryfall.com/docs/api/bulk-data
 
 import configparser
 import datetime
+import logging
+import logging.config
 from enum import Enum
 from pathlib import Path
 
@@ -33,6 +35,11 @@ import pandas as pd
 import requests
 import sqlalchemy
 from sqlalchemy.exc import IntegrityError
+
+logging.config.fileConfig("logger.conf")
+
+# create logger
+logger = logging.getLogger("simpleExample")
 
 config = configparser.ConfigParser()
 config.read("config.ini")
