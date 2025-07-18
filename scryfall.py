@@ -8,13 +8,13 @@ File Types
 ----------
 ORACLE
     A JSON file containing one Scryfall card object for each Oracle ID on Scryfall.
-    The chosen sets for the cards are an attempt to return the most up-to-date 
+    The chosen sets for the cards are an attempt to return the most up-to-date
     recognizable version of the card.
 UNIQUE
     A JSON file of Scryfall card objects that together contain all unique artworks.
     The chosen cards promote the best image scans.
 DEFAULT
-    A JSON file containing every card object on Scryfall in English or the printed 
+    A JSON file containing every card object on Scryfall in English or the printed
     language if the card is only available in one language.
 ALL
     A JSON file containing every card object on Scryfall in every language.
@@ -136,7 +136,10 @@ def flatten_list(color_list: list) -> str:
         return ""
 
     color_list: list[str] = [
-        str(element) for innerList in color_list for element in innerList if pd.notna(element)
+        str(element)
+        for innerList in color_list
+        for element in innerList
+        if pd.notna(element)
     ]
     color_list = set(color_list)  # remove duplicates
     color_list = ", ".join(color_list)
@@ -155,13 +158,17 @@ def read_data(json: str) -> pd.DataFrame:
 
     # clean a couple cols
     df["colors"] = df["colors"].apply(flatten_list)
-    df["cmc"] = df["cmc"].apply(lambda x: str(int(x)) if pd.notna(x) else pd.NA)  # float -> int
+    df["cmc"] = df["cmc"].apply(
+        lambda x: str(int(x)) if pd.notna(x) else pd.NA
+    )  # float -> int
 
     # aggregate rows by name, turn sets into strings for SQL
     df = df.fillna("")
     df = df.groupby("name").agg(set).reset_index()
     for col in keep_cols[1:]:
-        df[col] = df[col].apply(lambda x: ", ".join([element for element in x if element != ""]))
+        df[col] = df[col].apply(
+            lambda x: ", ".join([element for element in x if element != ""])
+        )
 
     return df
 
@@ -179,7 +186,9 @@ def update_db(data: pd.DataFrame) -> None:
     scryfall_table = sqlalchemy.Table(
         "scryfall",
         metadata,
-        sqlalchemy.Column("name", sqlalchemy.String(255), nullable=False, primary_key=True),
+        sqlalchemy.Column(
+            "name", sqlalchemy.String(255), nullable=False, primary_key=True
+        ),
         sqlalchemy.Column("set_name", sqlalchemy.String(14000)),
         sqlalchemy.Column("rarity", sqlalchemy.String(100)),
         sqlalchemy.Column("colors", sqlalchemy.String(100)),
